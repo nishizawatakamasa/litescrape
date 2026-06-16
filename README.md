@@ -66,7 +66,7 @@ with run_patchright(
     context={'viewport': {'width': 1920, 'height': 1080}},
     span=Span(browser=300, context=100, page=20),
 ) as pr:
-    page = s.page()
+    page = pr.page()
     p = lite_page(page)
     p.goto('https://home.katitas.jp/buyers_search')
     prefecture_urls = p.ii('div ul li a[href^="https://home.katitas.jp/buyers_search/area"]').urls
@@ -76,7 +76,7 @@ with run_patchright(
     for i, prefecture_url in enumerate(prefecture_urls):
         print(f'prefecture_url {i}/{n - 1}')
         for page_num in counter():
-            page = s.page()
+            page = pr.page()
             p = lite_page(page)
             if not p.goto(f'{prefecture_url}?{urlencode({"page": page_num})}', sleep_after=(0.5, 1)):
                 break
@@ -118,7 +118,7 @@ with run_patchright(
 ) as pr:
     for url_index, request_url in items:
         print(f'url_index {url_index}/{n - 1}')
-        page = s.page()
+        page = pr.page()
         p = lite_page(page)
         if not p.goto(request_url):
             append_csv(here('csv/failed.csv'), {
