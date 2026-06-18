@@ -15,7 +15,7 @@ Page = PatchrightPage | PlaywrightPage
 
 
 @dataclass(frozen=True, slots=True)
-class Span:
+class RecycleEvery:
     browser: int | None = None
     context: int | None = None
     page: int | None = None
@@ -31,70 +31,77 @@ class _RunnerBase:
     def __init__(
         self,
         *,
-        browser: dict[str, Any] | None = None,
-        context: dict[str, Any] | None = None,
-        span: Span | None = None,
+        browser_options: dict[str, Any] | None = None,
+        context_options: dict[str, Any] | None = None,
+        recycle: RecycleEvery | None = None,
     ) -> None:
-        self._span = span or Span()
-        self._browser_kw = dict(browser or {})
-        self._context_kw = dict(context or {})
+        self._recycle = recycle or RecycleEvery()
+        self._browser_options = dict(browser_options or {})
+        self._context_options = dict(context_options or {})
         self._browser = None
-        self._ctx = None
+        self._context = None
         self._page: Page | None = None
-        self._i = 0
-        self._active = False
+        self._page_calls = 0
+        self._entered = False
+
+    def __enter__(self) -> Self:
+        self._entered = True
+        return self
 
     def page(self) -> Page:
-        if not self._active:
+        if not self._entered:
             raise RuntimeError('with ブロックの外で page() を呼べません')
         if self._page is None:
             self._open_browser()
-        elif (b := self._span.browser) and self._i % b == 0:
+        elif (b := self._recycle.browser) and self._page_calls % b == 0:
             self._close_browser()
             self._open_browser()
-        elif (c := self._span.context) and self._i % c == 0:
+        elif (c := self._recycle.context) and self._page_calls % c == 0:
             self._close_context()
             self._open_context()
-        elif (p := self._span.page) and self._i % p == 0:
+        elif (p := self._recycle.page) and self._page_calls % p == 0:
             self._close_page()
             self._open_page()
-        self._i += 1
+        self._page_calls += 1
         return self._page
 
     def _open_page(self) -> None:
-        self._page = self._ctx.new_page()
+        self._page = self._context.new_page()
 
     def _close_page(self) -> None:
-        if self._page:
+        if self._page is not None:
             self._page.close()
             self._page = None
 
     def _open_context(self) -> None:
-        self._ctx = self._browser.new_context(**self._context_kw)
+        self._context = self._browser.new_context(**self._context_options)
         self._open_page()
 
     def _close_context(self) -> None:
         self._close_page()
-        if self._ctx:
-            self._ctx.close()
-            self._ctx = None
+        if self._context is not None:
+            self._context.close()
+            self._context = None
 
 
 class PatchrightRunner(_RunnerBase):
     def __init__(
         self,
         *,
-        browser: dict[str, Any] | None = None,
-        context: dict[str, Any] | None = None,
-        span: Span | None = None,
+        browser_options: dict[str, Any] | None = None,
+        context_options: dict[str, Any] | None = None,
+        recycle: RecycleEvery | None = None,
     ) -> None:
-        super().__init__(browser=browser, context=context, span=span)
+        super().__init__(
+            browser_options=browser_options,
+            context_options=context_options,
+            recycle=recycle,
+        )
         self._pw: Playwright | None = None
 
     def __enter__(self) -> Self:
         self._pw = sync_playwright().start()
-        self._active = True
-        return self
+        return super().__enter__()
 
     def __exit__(
         self,
@@ -102,22 +109,21 @@ class PatchrightRunner(_RunnerBase):
         exc: BaseException | None,
         tb: TracebackType | None,
     ) -> None:
-        if not self._active:
+        if not self._entered:
             return
         self._close_browser()
-        if self._pw:
-            self._pw.stop()
-            self._pw = None
-        self._active = False
-        self._i = 0
+        self._pw.stop()
+        self._pw = None
+        self._entered = False
+        self._page_calls = 0
 
     def _open_browser(self) -> None:
-        self._browser = self._pw.chromium.launch(**self._browser_kw)
+        self._browser = self._pw.chromium.launch(**self._browser_options)
         self._open_context()
 
     def _close_browser(self) -> None:
         self._close_context()
-        if self._browser:
+        if self._browser is not None:
             self._browser.close()
         self._browser = None
 
@@ -126,16 +132,20 @@ class CamoufoxRunner(_RunnerBase):
     def __init__(
         self,
         *,
-        browser: dict[str, Any] | None = None,
-        context: dict[str, Any] | None = None,
-        span: Span | None = None,
+        browser_options: dict[str, Any] | None = None,
+        context_options: dict[str, Any] | None = None,
+        recycle: RecycleEvery | None = None,
     ) -> None:
-        super().__init__(browser=browser, context=context, span=span)
-        self._fox_stack: ExitStack | None = None
+        super().__init__(
+            browser_options=browser_options,
+            context_options=context_options,
+            recycle=recycle,
+        )
+        self._stack: ExitStack | None = None
 
     def __enter__(self) -> Self:
-        self._active = True
-        return self
+        self._stack = ExitStack()
+        return super().__enter__()
 
     def __exit__(
         self,
@@ -143,38 +153,44 @@ class CamoufoxRunner(_RunnerBase):
         exc: BaseException | None,
         tb: TracebackType | None,
     ) -> None:
-        if not self._active:
+        if not self._entered:
             return
         self._close_browser()
-        self._active = False
-        self._i = 0
+        self._stack = None
+        self._entered = False
+        self._page_calls = 0
 
     def _open_browser(self) -> None:
-        self._fox_stack = ExitStack()
-        self._browser = self._fox_stack.enter_context(Camoufox(**self._browser_kw))
+        self._browser = self._stack.enter_context(Camoufox(**self._browser_options))
         self._open_context()
 
     def _close_browser(self) -> None:
         self._close_context()
-        if self._fox_stack:
-            self._fox_stack.close()
-            self._fox_stack = None
+        self._stack.close()
         self._browser = None
 
 
 def run_patchright(
     *,
-    browser: dict[str, Any] | None = None,
-    context: dict[str, Any] | None = None,
-    span: Span | None = None,
+    browser_options: dict[str, Any] | None = None,
+    context_options: dict[str, Any] | None = None,
+    recycle: RecycleEvery | None = None,
 ) -> PatchrightRunner:
-    return PatchrightRunner(browser=browser, context=context, span=span)
+    return PatchrightRunner(
+        browser_options=browser_options,
+        context_options=context_options,
+        recycle=recycle,
+    )
 
 
 def run_camoufox(
     *,
-    browser: dict[str, Any] | None = None,
-    context: dict[str, Any] | None = None,
-    span: Span | None = None,
+    browser_options: dict[str, Any] | None = None,
+    context_options: dict[str, Any] | None = None,
+    recycle: RecycleEvery | None = None,
 ) -> CamoufoxRunner:
-    return CamoufoxRunner(browser=browser, context=context, span=span)
+    return CamoufoxRunner(
+        browser_options=browser_options,
+        context_options=context_options,
+        recycle=recycle,
+    )

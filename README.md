@@ -41,12 +41,12 @@
 
 ### litescrape.browser
 
-- `Span`
-- `run_patchright(*, browser: dict | None = None, context: dict | None = None, span: Span | None = None) -> PatchrightRunner`
-- `run_camoufox(*, browser: dict | None = None, context: dict | None = None, span: Span | None = None) -> CamoufoxRunner`
+- `RecycleEvery`
+- `run_patchright(*, browser_options: dict | None = None, context_options: dict | None = None, recycle: RecycleEvery | None = None) -> PatchrightRunner`
+- `run_camoufox(*, browser_options: dict | None = None, context_options: dict | None = None, recycle: RecycleEvery | None = None) -> CamoufoxRunner`
 - `PatchrightRunner.page() -> Page` / `CamoufoxRunner.page() -> Page`
 
-`browser` / `context` は Playwright へ渡す起動オプション。`span` は litescrape の再生成間隔（`page()` 呼び出し回数ごとに独立して効く。省略時は再生成しない）。`page()` を呼ぶたびに内部カウントが 1 進む。
+`browser_options` / `context_options` は Playwright へ渡す起動オプション。`recycle` は litescrape の再生成間隔（`page()` 呼び出し回数ごとに独立して効く。省略時は再生成しない）。`page()` を呼ぶたびに内部カウントが 1 進む。
 
 ## 使用例
 
@@ -55,16 +55,16 @@
 from urllib.parse import urlencode
 
 from litescrape import lite_page
-from litescrape.browser import Span, run_patchright
+from litescrape.browser import RecycleEvery, run_patchright
 from litescrape.utils import save_log, from_here, counter, write_csv
 
 here = from_here(__file__)
 save_log(here('log/crawling.log'))
 
 with run_patchright(
-    browser={'channel': 'chrome', 'headless': False},
-    context={'viewport': {'width': 1920, 'height': 1080}},
-    span=Span(browser=300, context=100, page=20),
+    browser_options={'channel': 'chrome', 'headless': False},
+    context_options={'viewport': {'width': 1920, 'height': 1080}},
+    recycle=RecycleEvery(browser=300, context=100, page=20),
 ) as pr:
     page = pr.page()
     p = lite_page(page)
@@ -94,7 +94,7 @@ import time
 import pandas as pd
 
 from litescrape import lite_page
-from litescrape.browser import Span, run_patchright
+from litescrape.browser import RecycleEvery, run_patchright
 from litescrape.utils import (
     save_log,
     append_csv,
@@ -112,9 +112,9 @@ items = list(pd.read_csv(here('csv/urls.csv'))['url'].items())
 n = len(items)
 
 with run_patchright(
-    browser={'channel': 'chrome', 'headless': False},
-    context={'viewport': {'width': 1920, 'height': 1080}},
-    span=Span(browser=300, context=100),
+    browser_options={'channel': 'chrome', 'headless': False},
+    context_options={'viewport': {'width': 1920, 'height': 1080}},
+    recycle=RecycleEvery(browser=300, context=100),
 ) as pr:
     for url_index, request_url in items:
         print(f'url_index {url_index}/{n - 1}')
