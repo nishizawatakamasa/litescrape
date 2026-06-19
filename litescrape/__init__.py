@@ -17,7 +17,12 @@ from .core import (
     lite_node_group,
     lite_page,
     lite_parser,
+    lite_element,
+    lite_element_group,
+    lite_frame,
+    lite_shadow_root,
 )
+from .session import BrowseSession, RecycleEvery, open_camoufox, open_patchright
 
 __all__ = [
     "Page",
@@ -28,6 +33,10 @@ __all__ = [
     "lite_parser",
     "lite_node",
     "lite_node_group",
+    "lite_element",
+    "lite_element_group",
+    "lite_frame",
+    "lite_shadow_root",
     "LitePage",
     "LiteFrame",
     "LiteShadowRoot",
@@ -38,4 +47,8 @@ __all__ = [
     "LiteNode",
     "LiteNodeGroup",
     "NodeScan",
+    "BrowseSession",
+    "RecycleEvery",
+    "open_patchright",
+    "open_camoufox",
 ]

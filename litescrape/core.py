@@ -39,20 +39,36 @@ def lite_page(page: Page) -> LitePage:
     return LitePage(page)
 
 
+def lite_element(page: Page, elem: ElementHandle | None) -> LiteElement:
+    return LiteElement(page, elem)
+
+
+def lite_element_group(page: Page, elems: list[LiteElement]) -> LiteElementGroup:
+    return LiteElementGroup(page, elems)
+
+
+def lite_frame(page: Page, frame: Frame | None) -> LiteFrame:
+    return LiteFrame(page, frame)
+
+
+def lite_shadow_root(page: Page, host: ElementHandle | None) -> LiteShadowRoot:
+    return LiteShadowRoot(page, host)
+
+
 class _PageScoped:
     _page: Page
 
-    def _lite_element(self, elem: ElementHandle | None) -> LiteElement:
-        return LiteElement(self._page, elem)
+    def lite_element(self, elem: ElementHandle | None) -> LiteElement:
+        return lite_element(self._page, elem)
 
-    def _lite_element_group(self, elems: list[LiteElement]) -> LiteElementGroup:
-        return LiteElementGroup(self._page, elems)
+    def lite_element_group(self, elems: list[LiteElement]) -> LiteElementGroup:
+        return lite_element_group(self._page, elems)
 
-    def _lite_frame(self, frame: Frame | None) -> LiteFrame:
-        return LiteFrame(self._page, frame)
+    def lite_frame(self, frame: Frame | None) -> LiteFrame:
+        return lite_frame(self._page, frame)
 
-    def _lite_shadow_root(self, host: ElementHandle | None) -> LiteShadowRoot:
-        return LiteShadowRoot(self._page, host)
+    def lite_shadow_root(self, host: ElementHandle | None) -> LiteShadowRoot:
+        return lite_shadow_root(self._page, host)
 
 
 def lite_parser(parser: LexborHTMLParser) -> LiteParser:
@@ -78,12 +94,12 @@ class LitePage(_PageScoped):
     def i(self, selector: str) -> LiteElement:
         '''in'''
         elem = self._page.query_selector(selector)
-        return self._lite_element(elem)
+        return self.lite_element(elem)
 
     def ii(self, selector: str) -> LiteElementGroup:
         '''in all'''
         elems = self._page.query_selector_all(selector)
-        return self._lite_element_group([self._lite_element(e) for e in elems])
+        return self.lite_element_group([self.lite_element(e) for e in elems])
 
     def goto(
         self,
@@ -134,10 +150,10 @@ class LitePage(_PageScoped):
         '''wait'''
         try:
             elem = self._page.wait_for_selector(selector, state=state, timeout=timeout)
-            return self._lite_element(elem)
+            return self.lite_element(elem)
         except Exception as e:
             logger.warning(f'[wait] {type(e).__name__}: {e} | selector={selector!r} | url={self._page.url!r}')
-            return self._lite_element(None)
+            return self.lite_element(None)
 
 
 class LiteElement(_PageScoped):
@@ -155,34 +171,34 @@ class LiteElement(_PageScoped):
     def i(self, selector: str) -> LiteElement:
         '''in'''
         if self._elem is None:
-            return self._lite_element(None)
+            return self.lite_element(None)
         elem = self._elem.query_selector(selector)
-        return self._lite_element(elem)
+        return self.lite_element(elem)
 
     def ii(self, selector: str) -> LiteElementGroup:
         '''in all'''
         if self._elem is None:
-            return self._lite_element_group([])
+            return self.lite_element_group([])
         elems = self._elem.query_selector_all(selector)
-        return self._lite_element_group([self._lite_element(e) for e in elems])
+        return self.lite_element_group([self.lite_element(e) for e in elems])
 
     @property
     def frame(self) -> LiteFrame:
         if self._elem is None:
-            return self._lite_frame(None)
+            return self.lite_frame(None)
         try:
-            return self._lite_frame(self._elem.content_frame())
+            return self.lite_frame(self._elem.content_frame())
         except Exception as e:
             logger.error(f'[frame] {type(e).__name__}: {e}')
-            return self._lite_frame(None)
+            return self.lite_frame(None)
 
     @property
     def shadow(self) -> LiteShadowRoot:
-        return self._lite_shadow_root(self._elem)
+        return self.lite_shadow_root(self._elem)
 
     def _walk_relative(self, selector: str, axis: str, label: str) -> LiteElement:
         if self._elem is None:
-            return self._lite_element(None)
+            return self.lite_element(None)
         try:
             elem = self._elem.evaluate_handle(
                 '''(el, args) => {
@@ -196,10 +212,10 @@ class LiteElement(_PageScoped):
                 }''',
                 [selector, axis],
             ).as_element()
-            return self._lite_element(elem)
+            return self.lite_element(elem)
         except Exception as e:
             logger.error(f'[{label}] {self._elem} {type(e).__name__}: {e}')
-            return self._lite_element(None)
+            return self.lite_element(None)
 
     def n(self, selector: str) -> LiteElement:
         '''next'''
@@ -398,17 +414,17 @@ class ElementScan(_PageScoped):
                     return e
         except Exception as e:
             logger.warning(f'[scan] {type(e).__name__}: {e} | pattern={pattern!r}')
-        return self._lite_element(None)
+        return self.lite_element(None)
 
     def mm(self, pattern: str) -> LiteElementGroup:
         '''match all'''
         try:
             prog = re.compile(pattern)
             filtered = [e for text, e in self._pairs if prog.search(text)]
-            return self._lite_element_group(filtered)
+            return self.lite_element_group(filtered)
         except Exception as e:
             logger.warning(f'[scan] {type(e).__name__}: {e} | pattern={pattern!r}')
-            return self._lite_element_group([])
+            return self.lite_element_group([])
 
 
 class LiteFrame(_PageScoped):
@@ -426,29 +442,29 @@ class LiteFrame(_PageScoped):
     def i(self, selector: str) -> LiteElement:
         '''in'''
         if self._frame is None:
-            return self._lite_element(None)
+            return self.lite_element(None)
         elem = self._frame.query_selector(selector)
-        return self._lite_element(elem)
+        return self.lite_element(elem)
 
     def ii(self, selector: str) -> LiteElementGroup:
         '''in all'''
         if self._frame is None:
-            return self._lite_element_group([])
+            return self.lite_element_group([])
         elems = self._frame.query_selector_all(selector)
-        return self._lite_element_group([self._lite_element(e) for e in elems])
+        return self.lite_element_group([self.lite_element(e) for e in elems])
 
     def w(self, selector: str, state: str = 'attached', timeout: int = 15000) -> LiteElement:
         '''wait'''
         if self._frame is None:
-            return self._lite_element(None)
+            return self.lite_element(None)
         try:
             elem = self._frame.wait_for_selector(selector, state=state, timeout=timeout)
-            return self._lite_element(elem)
+            return self.lite_element(elem)
         except Exception as e:
             logger.warning(
                 f'[wait] {type(e).__name__}: {e} | selector={selector!r} | url={self._page.url!r}'
             )
-            return self._lite_element(None)
+            return self.lite_element(None)
 
 
 class LiteShadowRoot(_PageScoped):
@@ -468,21 +484,21 @@ class LiteShadowRoot(_PageScoped):
     def i(self, selector: str) -> LiteElement:
         '''in'''
         if not self:
-            return self._lite_element(None)
+            return self.lite_element(None)
         try:
             elem = self._host.evaluate_handle(
                 '(el, sel) => el.shadowRoot?.querySelector(sel) ?? null',
                 selector,
             ).as_element()
-            return self._lite_element(elem)
+            return self.lite_element(elem)
         except Exception as e:
             logger.error(f'[shadow i] {type(e).__name__}: {e} | selector={selector!r}')
-            return self._lite_element(None)
+            return self.lite_element(None)
 
     def ii(self, selector: str) -> LiteElementGroup:
         '''in all'''
         if not self:
-            return self._lite_element_group([])
+            return self.lite_element_group([])
         try:
             n = self._host.evaluate(
                 '(el, sel) => el.shadowRoot?.querySelectorAll(sel)?.length ?? 0',
@@ -497,20 +513,20 @@ class LiteShadowRoot(_PageScoped):
                     }''',
                     [selector, idx],
                 ).as_element()
-                elems.append(self._lite_element(elem))
-            return self._lite_element_group(elems)
+                elems.append(self.lite_element(elem))
+            return self.lite_element_group(elems)
         except Exception as e:
             logger.error(f'[shadow ii] {type(e).__name__}: {e} | selector={selector!r}')
-            return self._lite_element_group([])
+            return self.lite_element_group([])
 
     def w(self, selector: str, timeout: int = 15000) -> LiteElement:
         '''wait (attached in shadow root only)'''
         if not self:
-            return self._lite_element(None)
+            return self.lite_element(None)
         frame = self._host.owner_frame()
         if frame is None:
             logger.warning('[shadow wait] owner_frame is None')
-            return self._lite_element(None)
+            return self.lite_element(None)
         try:
             frame.wait_for_function(
                 '([el, sel]) => Boolean(el.shadowRoot?.querySelector(sel))',
@@ -522,7 +538,7 @@ class LiteShadowRoot(_PageScoped):
             logger.warning(
                 f'[shadow wait] {type(e).__name__}: {e} | selector={selector!r} | url={self._page.url!r}'
             )
-            return self._lite_element(None)
+            return self.lite_element(None)
 
 
 class LiteParser:

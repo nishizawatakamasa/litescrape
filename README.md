@@ -5,13 +5,21 @@
 ## インストール
 `uv add litescrape`  
 
-※ `run_patchright` を使うとき：Google ChromeをPCにインストールしておく。  
-※ `run_camoufox` を使うとき：`uv run camoufox fetch`  
+※ `open_patchright` を使うとき：Google ChromeをPCにインストールしておく。  
+※ `open_camoufox` を使うとき：`uv run camoufox fetch`  
 
 ## 実装機能
 
 ### litescrape
 
+- `lite_page(page: Page) -> LitePage`
+- `lite_element(page: Page, elem: ElementHandle | None) -> LiteElement`
+- `lite_element_group(page: Page, elems: list[LiteElement]) -> LiteElementGroup`
+- `lite_frame(page: Page, frame: Frame | None) -> LiteFrame`
+- `lite_shadow_root(page: Page, host: ElementHandle | None) -> LiteShadowRoot`
+- `lite_parser(parser: LexborHTMLParser) -> LiteParser`
+- `lite_node(node: LexborNode | None) -> LiteNode`
+- `lite_node_group(nodes: list[LiteNode]) -> LiteNodeGroup`
 - `LitePage`
 - `LiteElement`
 - `LiteElementGroup`
@@ -39,12 +47,15 @@
 - `glob_paths(dir_path: Path, pattern: str = '*.html') -> list[str]`
 - `counter(start: int = 1) -> Iterator[int]`
 
-### litescrape.browser
+### litescrape.session
 
 - `RecycleEvery`
-- `run_patchright(*, browser_options: dict | None = None, context_options: dict | None = None, recycle: RecycleEvery | None = None) -> PatchrightRunner`
-- `run_camoufox(*, browser_options: dict | None = None, context_options: dict | None = None, recycle: RecycleEvery | None = None) -> CamoufoxRunner`
-- `PatchrightRunner.page() -> Page` / `CamoufoxRunner.page() -> Page`
+- `BrowseSession`
+- `open_patchright(*, browser_options: dict | None = None, context_options: dict | None = None, recycle: RecycleEvery | None = None) -> BrowseSession`
+- `open_camoufox(*, browser_options: dict | None = None, context_options: dict | None = None, recycle: RecycleEvery | None = None) -> BrowseSession`
+- `BrowseSession.page() -> Page`
+
+`litescrape` からも `RecycleEvery` / `BrowseSession` / `open_patchright` / `open_camoufox` を import できる。
 
 `browser_options` / `context_options` は Playwright へ渡す起動オプション。`recycle` は litescrape の再生成間隔（`page()` 呼び出し回数ごとに独立して効く。省略時は再生成しない）。`page()` を呼ぶたびに内部カウントが 1 進む。
 
@@ -55,18 +66,18 @@
 from urllib.parse import urlencode
 
 from litescrape import lite_page
-from litescrape.browser import RecycleEvery, run_patchright
+from litescrape.session import RecycleEvery, open_patchright
 from litescrape.utils import save_log, from_here, counter, write_csv
 
 here = from_here(__file__)
 save_log(here('log/crawling.log'))
 
-with run_patchright(
+with open_patchright(
     browser_options={'channel': 'chrome', 'headless': False},
     context_options={'viewport': {'width': 1920, 'height': 1080}},
     recycle=RecycleEvery(browser=300, context=100, page=20),
-) as pr:
-    page = pr.page()
+) as s:
+    page = s.page()
     p = lite_page(page)
     p.goto('https://home.katitas.jp/buyers_search')
     prefecture_urls = p.ii('div ul li a[href^="https://home.katitas.jp/buyers_search/area"]').urls
@@ -76,7 +87,7 @@ with run_patchright(
     for i, prefecture_url in enumerate(prefecture_urls):
         print(f'prefecture_url {i}/{n - 1}')
         for page_num in counter():
-            page = pr.page()
+            page = s.page()
             p = lite_page(page)
             if not p.goto(f'{prefecture_url}?{urlencode({"page": page_num})}', sleep_after=(0.5, 1)):
                 break
@@ -94,7 +105,7 @@ import time
 import pandas as pd
 
 from litescrape import lite_page
-from litescrape.browser import RecycleEvery, run_patchright
+from litescrape.session import RecycleEvery, open_patchright
 from litescrape.utils import (
     save_log,
     append_csv,
@@ -111,14 +122,14 @@ save_log(here('log/scraping.log'))
 items = list(pd.read_csv(here('csv/urls.csv'))['url'].items())
 n = len(items)
 
-with run_patchright(
+with open_patchright(
     browser_options={'channel': 'chrome', 'headless': False},
     context_options={'viewport': {'width': 1920, 'height': 1080}},
     recycle=RecycleEvery(browser=300, context=100),
-) as pr:
+) as s:
     for url_index, request_url in items:
         print(f'url_index {url_index}/{n - 1}')
-        page = pr.page()
+        page = s.page()
         p = lite_page(page)
         if not p.goto(request_url):
             append_csv(here('csv/failed.csv'), {
