@@ -1,3 +1,10 @@
+from .browser import (
+    CamoufoxRunner,
+    PatchrightRunner,
+    RecycleEvery,
+    run_camoufox,
+    run_patchright,
+)
 from .core import (
     ElementHandle,
     ElementScan,
@@ -22,7 +29,6 @@ from .core import (
     lite_frame,
     lite_shadow_root,
 )
-from .session import BrowseSession, RecycleEvery, open_camoufox, open_patchright
 
 __all__ = [
     "Page",
@@ -47,8 +53,9 @@ __all__ = [
     "LiteNode",
     "LiteNodeGroup",
     "NodeScan",
-    "BrowseSession",
     "RecycleEvery",
-    "open_patchright",
-    "open_camoufox",
+    "PatchrightRunner",
+    "CamoufoxRunner",
+    "run_patchright",
+    "run_camoufox",
 ]

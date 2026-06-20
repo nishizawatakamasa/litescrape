@@ -5,8 +5,8 @@
 ## インストール
 `uv add litescrape`  
 
-※ `open_patchright` を使うとき：Google ChromeをPCにインストールしておく。  
-※ `open_camoufox` を使うとき：`uv run camoufox fetch`  
+※ `run_patchright` を使うとき：Google ChromeをPCにインストールしておく。  
+※ `run_camoufox` を使うとき：`uv run camoufox fetch`  
 
 ## 実装機能
 
@@ -47,15 +47,17 @@
 - `glob_paths(dir_path: Path, pattern: str = '*.html') -> list[str]`
 - `counter(start: int = 1) -> Iterator[int]`
 
-### litescrape.session
+### litescrape.browser
 
 - `RecycleEvery`
-- `BrowseSession`
-- `open_patchright(*, browser_options: dict | None = None, context_options: dict | None = None, recycle: RecycleEvery | None = None) -> BrowseSession`
-- `open_camoufox(*, browser_options: dict | None = None, context_options: dict | None = None, recycle: RecycleEvery | None = None) -> BrowseSession`
-- `BrowseSession.page() -> Page`
+- `PatchrightRunner`
+- `CamoufoxRunner`
+- `run_patchright(*, browser_options: dict | None = None, context_options: dict | None = None, recycle: RecycleEvery | None = None) -> PatchrightRunner`
+- `run_camoufox(*, browser_options: dict | None = None, context_options: dict | None = None, recycle: RecycleEvery | None = None) -> CamoufoxRunner`
+- `PatchrightRunner.page() -> Page`
+- `CamoufoxRunner.page() -> Page`
 
-`litescrape` からも `RecycleEvery` / `BrowseSession` / `open_patchright` / `open_camoufox` を import できる。
+`litescrape` からも `RecycleEvery` / `PatchrightRunner` / `CamoufoxRunner` / `run_patchright` / `run_camoufox` を import できる。
 
 `browser_options` / `context_options` は Playwright へ渡す起動オプション。`recycle` は litescrape の再生成間隔（`page()` 呼び出し回数ごとに独立して効く。省略時は再生成しない）。`page()` を呼ぶたびに内部カウントが 1 進む。
 
@@ -66,13 +68,13 @@
 from urllib.parse import urlencode
 
 from litescrape import lite_page
-from litescrape.session import RecycleEvery, open_patchright
+from litescrape.browser import RecycleEvery, run_patchright
 from litescrape.utils import save_log, from_here, counter, write_csv
 
 here = from_here(__file__)
 save_log(here('log/crawling.log'))
 
-with open_patchright(
+with run_patchright(
     browser_options={'channel': 'chrome', 'headless': False},
     context_options={'viewport': {'width': 1920, 'height': 1080}},
     recycle=RecycleEvery(browser=300, context=100, page=20),
@@ -105,7 +107,7 @@ import time
 import pandas as pd
 
 from litescrape import lite_page
-from litescrape.session import RecycleEvery, open_patchright
+from litescrape.browser import RecycleEvery, run_patchright
 from litescrape.utils import (
     save_log,
     append_csv,
@@ -122,7 +124,7 @@ save_log(here('log/scraping.log'))
 items = list(pd.read_csv(here('csv/urls.csv'))['url'].items())
 n = len(items)
 
-with open_patchright(
+with run_patchright(
     browser_options={'channel': 'chrome', 'headless': False},
     context_options={'viewport': {'width': 1920, 'height': 1080}},
     recycle=RecycleEvery(browser=300, context=100),
